@@ -23,13 +23,16 @@ const int SLOW = 1;
 const int FAST = 2;
 const int FORWARD = 1;
 const int BACKWARD = -1;
+int RIGHT = 1;
+int LEFT = -1;
 const int baseSpeed = 100;
 const int rCorrection = -5;
 const int lCorrection = 0;
-const int turnDelay = 600;
+const int turnDelay = 500;
 
 //Variablen
 int force;
+boolean invert;
 
 void setup() {
   //Initialisierung des Beschleunigungssensors
@@ -44,23 +47,29 @@ void setup() {
   //Hauptprogramm
   lcd.clear();
   lcd.print("Fahren...");
-  drive(FORWARD,FAST,2000);
-  drive(BACKWARD,FAST,3000);
-  drive(FORWARD,SLOW,400);
-  turnLeft();
-  drive(FORWARD,SLOW,400);
-  turnRight();
-
-  drive(FORWARD,FAST,3000);
-  drive(BACKWARD,FAST,3200);
-  drive(FORWARD,SLOW,400);
-  turnLeft();
-  drive(FORWARD,SLOW,600);
-  turnRight();
+  drive(FORWARD,FAST,600);
+  turn(LEFT);
 }
 
 void loop() {
-
+  drive(FORWARD,FAST,3000);
+  drive(BACKWARD,SLOW,200);
+  turn(RIGHT);
+  invert = drive(FORWARD,SLOW,600);
+  if (invert) drive(BACKWARD,SLOW,400);
+  else drive(BACKWARD,SLOW,600);
+  turn(LEFT);
+  if (invert) {
+    LEFT = -LEFT;
+    RIGHT = -RIGHT;
+    invert = false;
+  }
+  drive(FORWARD,FAST,150);
+  drive(BACKWARD,FAST,3000);
+  drive(FORWARD,SLOW,400);
+  turn(RIGHT);
+  drive(FORWARD,SLOW,400);
+  turn(LEFT);
 }
 
 /*
@@ -70,14 +79,14 @@ void loop() {
  * @params sMod       Geschwindigkeitsmodifikator
  * @params duration   maximale Fahrzeit
  */
-void drive(int direction, int sMod, int duration) {
+boolean drive(int direction, int sMod, int duration) {
   int endTime = millis() + duration;                            //Berechnet Zeitpunkt an dem die Methode spätestens beendet wird
   int lSpeed = direction * ((sMod * baseSpeed) + lCorrection);  //Berechnet Geschwindigkeit der linken Seite
   int rSpeed = direction * ((sMod * baseSpeed) + rCorrection);  //Berechnet Geschwindigkeit der rechten Seite
   motors.setSpeeds(lSpeed, rSpeed);
   
-  if (duration > 900) {   //Wenn Fahrt über 900 ms -> Wanderkennung
-    delay(500);           //Warten bis konstante Geschwindigkeit erreicht wurde
+  if (duration > 300) {   //Wenn Fahrt über 900 ms -> Wanderkennung
+    delay(200);           //Warten bis konstante Geschwindigkeit erreicht wurde
     do {
       compass.readAcc();  //Kompass auslesen
       //Werte aller Achsen addieren und 1 G subtrahieren
@@ -86,27 +95,20 @@ void drive(int direction, int sMod, int duration) {
       lcd.clear();
       lcd.print(force);
     } while (force < 15000 && millis() < endTime); //Abbruch wenn Kraftänderung über 15000 (fast 1 G) oder wenn Endzeit erreicht
+    return force > 15000;
   } else {
     delay(duration);
   }
 }
 
 /*
- * Dreht den Roboter um 90 Grad nach links
+ * Dreht den Roboter um 90 Grad in die übergebene Richtung
+ * 
+ * @params direction  Richtung
  */
-void turnRight() {
-  motors.setSpeeds(baseSpeed,-baseSpeed);
+void turn(int direction) {
+  motors.setSpeeds(direction * baseSpeed, -direction * baseSpeed);
   delay(turnDelay);
   motors.setSpeeds(0,0);
 }
-
-/*
- * Dreht den Roboter um 90 Grad nach rechts
- */
-void turnLeft() {
-  motors.setSpeeds(-baseSpeed,baseSpeed);
-  delay(turnDelay);
-  motors.setSpeeds(0,0);
-}
-
 
